@@ -3,7 +3,7 @@
 The JaPanese Alphabet trainer is a C++ Windows CLI tool for learning the Japanese Hiragana and Katakana Alphabets from the Russian or English Alphabets, it also supports  Japanese to English transliteration
 
 ## Linux Compatible ANSI C version
-A linux compatible version of this software written in ANSI C can be found [here](
+A linux compatible version of this software written in ANSI C can be found [here](https://github.com/Syntakt/JPATC)
 
 ## Compilation
 This was compiled under the MSVC compiler with MSVS 2019, I can't guarantee anything else will work.
