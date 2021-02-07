@@ -1,4 +1,4 @@
-﻿#include <fcntl.h>
+#include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
 #include <time.h>
@@ -8,17 +8,35 @@
 #include <string>
 
 #include "tables.h"
+#include "usage.h"
 
-unsigned short uiamount = 0;
-unsigned short qasked = 15;
 
-int main(int argc, char* argv[])
+void transliterate(std::wstring buffer, std::wstring& output) 
 {
-	int forceaccuracy = 0;
-	int cheat = 0;
-	int al = both;
+	char flag = 1;
+	for (int i = 0; i < buffer.size(); i++) {
+		for (int j = 0; j < 71; j++) {
+			if (buffer[i] == hiragana[j] || output[i] == katakana[j]) {
+				output += ENG[j];
+				flag = 0;
+				break;
+			}
+			flag = 1;
+		}
+		if(flag)
+			output += buffer[i];
+	}
+}
+
+/*parse arguments given on the command line, setting vars passed in*/
+void parseargs(int argc, char* argv[], int &trlt, int &forceaccuracy,
+	int &cheat, int &al, unsigned short &qasked) {
 	for (unsigned short i = 1; i < argc; i += 2) {
-		if (!strcmp(argv[i], "-fa")) {
+		if (!strcmp(argv[i], "-t")) {
+			trlt = 1;
+			break;
+		}
+		else if (!strcmp(argv[i], "-fa")) {
 			forceaccuracy = std::stoi(argv[i + 1]);
 		}
 		else if (!strcmp(argv[i], "-l")) {
@@ -41,86 +59,137 @@ int main(int argc, char* argv[])
 			qasked = std::stoi(argv[i + 1]);
 		}
 		else if (!strcmp(argv[i], "-h")) {
-			printf( "JPAT, JaPanese Alphabet Trainer -h\n\n"
-					"USAGE: JPAT [options]\n"
-					"Options:\n"
-					"\t-fa force accuracy, the following arg is a int value determining this parameter. default: 0\n"
-					"\t-l learn mode, tells you the answers, the following arg is an int value determining this parameter. default: 0\n"
-					"\t-a Alphabet Selection, the following arg is a char, \n"
-					"\t\t'k' for katakana, 'h' for hiragana, and 'b' for both randomly switching. default: b\n"
-					"\t-q question amount, as an integer, default: 15\n\n"
-					"for bug reporting, suggestions, and marriage proposals (JP women only) please contact mapelint@protonmail.com\n");
-			return 0;
-		} else {
+			printf(usage);
+			exit(1);
+		}
+		else {
 			printf("Issue parsing, see -h for usage");
-			return 1;
+			exit(1);
 		}
 	}
-	srand((unsigned int)time(NULL));
-	int ploc = _setmode(_fileno(stdout), _O_U16TEXT);
+}
 
-	ULONGLONG sttime;
-	sttime = GetTickCount64();
-	unsigned short inc = 0;
+int main(int argc, char* argv[])
+{
+	unsigned short uiamount = 0,
+	qasked = 15;
+	int trlt = 0,
+	forceaccuracy = 0,
+	cheat = 0,
+	al = both;
 
-	int previndex = -1;
-	for (unsigned char i = 0; i < qasked; i++) {
-		std::wstring buffer;
-		int index = 0;
-		do {
-			index = rand() % (sizeof(hiragana) / sizeof(wchar_t));
-		}
-		while (index == previndex);
+	parseargs(argc, argv, trlt, forceaccuracy, cheat, al, qasked);
 
-		wchar_t dispchar = L' ';
+	/*exit if an error is raised when setting cmd.exe to be unicode*/
+	if (_setmode(_fileno(stdin), _O_U8TEXT) == -1 ||
+		_setmode(_fileno(stdout), _O_U8TEXT) == -1)
+		exit(1);
 
-		switch (al) {
-		case both:
-			if (!(rand() % 2))
-				dispchar = hiragana[index];
-			else
+	if (!trlt) {
+		/*set srand with time*/
+		srand((unsigned int)time(NULL));
+		/*set start time and set incorrect answers to 0*/
+		ULONGLONG sttime = GetTickCount64();
+		unsigned short inc = 0;
+
+		int previndex = -1;
+		/*loop for how many questions are desired to be asked */
+		for (unsigned char i = 0; i < qasked; i++) {
+			int index = 0;
+			/* get a random number without any back to back repeats */
+			do {
+				index = rand() % (sizeof(hiragana) / sizeof(wchar_t));
+			} while (index == previndex);
+			/* set dispchar to the alphabet that as selected */
+			wchar_t dispchar = L' ';
+			switch (al) {
+			case both:
+				if (!(rand() % 2))
+					dispchar = hiragana[index];
+				else
+					dispchar = katakana[index];
+				break;
+			case katakan:
 				dispchar = katakana[index];
-			break;
-		case katakan:
-			dispchar = katakana[index];
-			break;
-		case hiragan:
-			dispchar = hiragana[index];
-			break;
-		}
+				break;
+			case hiragan:
+				dispchar = hiragana[index];
+				break;
+			}
 
-		putwchar(hiragana[index]);
+			putwchar(hiragana[index]);
 			wprintf(L" %s\n", cheat ? ENG[index] : L"");
 
-	input:
+		input:
+			/*get user input*/
+			std::wstring buffer;
+			std::getline(std::wcin, buffer);
+			/*exit when input starts with !*/
+			if (buffer[0] == L'!')
+				break;
 
-		std::getline(std::wcin, buffer);
-		if (buffer[0] == L'!')
-			break;
-
-		uiamount++;
-
-		std::transform(buffer.begin(), buffer.end(), buffer.begin(), ::tolower);
-
-		if (wcscmp(buffer.c_str(), ENG[index])) {
-			err[index][0]++;
-			if (forceaccuracy) {
-				goto input;
+			uiamount++;
+			/*make input lowercase*/
+			std::transform(buffer.begin(), buffer.end(),
+				buffer.begin(), ::tolower);
+			/*behaviour when input isn't correct*/
+			if (wcscmp(buffer.c_str(), ENG[index]) && 
+				wcscmp(buffer.c_str(), РУС[index])) {
+				//err[index][0]++;
+				if (forceaccuracy) {
+					goto input;
+				}
+				wprintf(L"it's %s | %s!\n", ENG[index], РУС[index]);
+			} else {
+				inc++;
 			}
-			wprintf(L"it's %s!\n", ENG[index]);
-		} else {
-			inc++;
+			previndex = index;
 		}
-		previndex = index;
-	}
-	ULONGLONG extime = GetTickCount64() - sttime;
-	if (uiamount && inc) {
-		long double acc = ((long double)inc / uiamount);
-		int score = (int)((extime / uiamount) / acc) / 10;
-		wprintf(L"\nIt took you %llus to complete the test, and made %u mistakes,\n"
-			L"your score is %i (lower is better)\n",
-			extime / 1000, uiamount - inc, score);
-	} else { 
-		wprintf(L"You failed to answer any question correctly\n");
+		/*get time between starting and now*/
+		ULONGLONG extime = GetTickCount64() - sttime;
+		/* ensure that the person did enter something *
+		 * otherwise we will have divisions by zero   */
+		if (uiamount && inc) {
+			/*calculate score*/
+			float acc = ((float)inc / uiamount);
+			/* score is the mean time (in ms) for an       *
+			 * answer to be inputted, divided by accuracy, *
+			 * and then divided by 10		       */
+			int score = (int)((extime / uiamount) / acc) / 10;
+			wprintf(L"Time (s): %llu\n"
+				L"Mistakes: %u\n"
+				L"Score:    %i\n",
+				extime / 1000, uiamount - inc, score);
+		} else {
+			/*this is to avoid division by zero exceptions*/
+			_putws(L"You failed to answer any question correctly\n");
+			exit(0);
+		}
+	} else {
+		/*transliterate*/
+		/*set filepath to path of executable - the exe name + argv[2]*/
+		std::string filepath = argv[0];
+		filepath = filepath.substr(0, filepath.find_last_of('\\') + 1) 
+			+ (argc > 2 ? argv[2] : "baka.txt");
+		/*open file, if it fails fall to else*/
+		FILE* fp;
+		fopen_s(&fp, filepath.c_str(), "r,ccs=UTF-8");
+		fwide(fp, 1);
+		if (fp) {
+			/*initialize input and output buffers*/
+			wchar_t buffer[0xff];
+			std::wstring output;
+			/* transliterate every line in the file */
+			while (fgetws(buffer, sizeof buffer / sizeof(wchar_t), fp))
+				transliterate(buffer, output);
+			/*print output and cleanup file*/
+			_putws(output.c_str());
+			fclose(fp);
+		} else {
+			std::wstring input, output;
+			std::getline(std::wcin, input);
+			transliterate((wchar_t*)input.c_str(), output);
+			wprintf(L"%s\n", output.c_str());
+		}
 	}
 }
