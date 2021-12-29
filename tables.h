@@ -76,7 +76,7 @@ const wchar_t* РУС[] = {
 	L"ма", L"ми", L"му", L"ме", L"мо",
 	L"я", L"ю", L"ё",
 	L"ра", L"ри", L"ру", L"ре", L"ро",
-	L"уа", L"уо", /* There is no W sound in RU Cyrillic, not sure of UR *
+	L"я", L"ё", /* There is no W sound in RU Cyrillic, not sure of UR *
 				* it is ambiguous, either ва или уа is suitable	      */
 	L"н",
 };
